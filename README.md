@@ -47,12 +47,3 @@ Aplikasi ini dibangun untuk menyediakan akses informasi publik yang cepat, akura
 - **Database**: MySQL / MariaDB
 
 ---
-
-## ⚙️ Panduan Instalasi (Development Environment)
-
-Jika Anda ingin melakukan *deployment* atau pengujian di lingkungan server lokal/staging, ikuti langkah-langkah berikut:
-
-1. **Clone Repository**
-   ```bash
-   git clone [https://github.com/USERNAME_GITHUB_KAMU/NAMA_REPOSITORY.git](https://github.com/USERNAME_GITHUB_KAMU/NAMA_REPOSITORY.git)
-   cd NAMA_REPOSITORY
