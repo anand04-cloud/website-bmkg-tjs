@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Earthquake;
-use App\Models\AirQuality;
 use App\Models\WeatherWarning;
 use App\Models\Berita;
 use App\Models\Buletin;
@@ -11,7 +10,6 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Http\Client\Pool;
 
 class PublicController extends Controller
 {
@@ -150,8 +148,7 @@ class PublicController extends Controller
             ];
         }
         
-        // --- KUNCI PERBAIKAN PERINGATAN DINI DI BERANDA ---
-        // Menggunakan filter Kaltara agar peringatan beranda fokus ke wilayah kerja
+        // --- KUNCI PERBAIKAN PERINGATAN DINI DI BERANDA --
         $warnings = WeatherWarning::where(function($query) {
                         $query->where('title', 'LIKE', '%Kalimantan Utara%')
                               ->orWhere('title', 'LIKE', '%Kaltara%')
@@ -164,18 +161,12 @@ class PublicController extends Controller
                     
         $gempa = Earthquake::latest()->first();
         
-        $iklimCache = Cache::remember('kualitas_udara_tanjung_selor_live', 1800, function () {
+        // --- AMBIL DATA KUALITAS UDARA DARI API LOKAL BARU ---
+        $pm25Data = Cache::remember('pm25_local_latest_home', 60, function () {
             try {
-                $token = 'ee62d1bb0cc128d45baeb36f6bd27bec621cb5c1';
-                $response = Http::timeout(5)->get("https://api.waqi.info/feed/@13505/?token={$token}");
-
-                if ($response->successful() && $response->json('status') === 'ok') {
-                    $data = $response->json('data');
-                    return [
-                        'station_name' => 'Tanjung Selor',
-                        'aqi_value'    => $data['aqi'] ?? 0,
-                        'measured_at'  => $data['time']['s'] ?? now()->toDateTimeString(),
-                    ];
+                $response = Http::withoutVerifying()->timeout(10)->get('https://bmkgbulungan.id/cms/public/api/pm25_latest.json');
+                if ($response->successful()) {
+                    return $response->json();
                 }
             } catch (\Exception $e) {
                 return null;
@@ -183,29 +174,12 @@ class PublicController extends Controller
             return null;
         });
 
-        $iklim = $iklimCache ? (object) $iklimCache : null;
+        // Fallback jika API lokal gagal/kosong
+        $val = $pm25Data['pm25'] ?? 83.80; 
 
-        if (!$iklim) {
-            $iklim = AirQuality::where('station_name', 'LIKE', '%Tanjung Selor%')->latest()->first();
-        }
-        
-        // KUNCI PERBAIKAN 3: Fallback aman jika database juga kosong
-        $aqi = $iklim ? ($iklim->aqi_value ?? 0) : 0;
-        
-        $aqiData = [
-            'value' => $aqi, 'color' => 'emerald', 'status' => 'Baik',
-            'desc'  => 'Kualitas udara dianggap memuaskan, dan polusi udara menimbulkan sedikit atau tanpa risiko.'
-        ];
-
-        if ($aqi > 300) { $aqiData = ['value' => $aqi, 'color' => 'rose', 'status' => 'Berbahaya', 'desc' => 'Peringatan kesehatan: semua orang mungkin mengalami efek kesehatan yang lebih serius.']; }
-        elseif ($aqi > 200) { $aqiData = ['value' => $aqi, 'color' => 'purple', 'status' => 'Sangat Tidak Sehat', 'desc' => 'Peringatan kesehatan untuk kondisi darurat.']; }
-        elseif ($aqi > 150) { $aqiData = ['value' => $aqi, 'color' => 'red', 'status' => 'Tidak Sehat', 'desc' => 'Setiap orang mungkin mulai mengalami efek kesehatan.']; }
-        elseif ($aqi > 100) { $aqiData = ['value' => $aqi, 'color' => 'orange', 'status' => 'Tidak Sehat (Sensitif)', 'desc' => 'Anggota kelompok sensitif dapat mengalami efek kesehatan.']; }
-        elseif ($aqi > 50) { $aqiData = ['value' => $aqi, 'color' => 'yellow', 'status' => 'Moderat', 'desc' => 'Kualitas udara dapat diterima.']; }
-        
         $beritas = Berita::latest()->take(3)->get(); 
         
-        return view('frontend.home', compact('weatherData', 'gempa', 'iklim', 'warnings', 'aqiData', 'beritas'));
+        return view('frontend.home', compact('weatherData', 'gempa', 'pm25Data', 'warnings', 'beritas'));
     }
     public function peringatanDini()
     {
@@ -296,67 +270,59 @@ class PublicController extends Controller
     }
     public function kualitasUdara()
     {
-        $kualitasUdara = Cache::remember('kualitas_udara_indonesia', 1800, function () {
-            $token = 'ee62d1bb0cc128d45baeb36f6bd27bec621cb5c1'; 
-            
-            $stasiun = [
-                'Tanjung Selor'  => '@13505', 'Tarakan' => 'tarakan', 'Pontianak' => 'pontianak',
-                'Palangkaraya'   => 'palangkaraya', 'Banjarmasin' => 'banjarmasin', 'Samarinda' => 'samarinda',
-                'Balikpapan'     => 'balikpapan', 'Banda Aceh' => 'banda aceh', 'Medan' => 'medan',
-                'Pekanbaru'      => 'pekanbaru', 'Padang' => 'padang', 'Jambi' => 'jambi',
-                'Palembang'      => 'palembang', 'Bengkulu' => 'bengkulu', 'Bandar Lampung' => 'lampung',
-                'Batam'          => 'batam', 'Pangkal Pinang' => 'pangkal pinang', 'Jakarta' => 'jakarta',
-                'Serang'         => 'serang', 'Bandung' => 'bandung', 'Semarang' => 'semarang',
-                'Yogyakarta'     => 'yogyakarta', 'Surabaya' => 'surabaya', 'Malang' => 'malang',
-                'Denpasar'       => 'denpasar', 'Mataram' => 'mataram', 'Kupang' => 'kupang',
-                'Makassar'       => 'makassar', 'Manado' => 'manado', 'Palu' => 'palu',
-                'Kendari'        => 'kendari', 'Gorontalo' => 'gorontalo', 'Mamuju' => 'mamuju',
-                'Ambon'          => 'ambon', 'Ternate' => 'ternate', 'Jayapura' => 'jayapura',
-                'Sorong'         => 'sorong', 'Manokwari' => 'manokwari', 'Timika' => 'timika'
-            ];
+        // Cache v12 untuk memastikan data fresh
+        $pm25Data = Cache::remember('pm25_local_data_v12', 60, function () {
+            try {
+                $response = Http::withoutVerifying()
+                    ->withHeaders([
+                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                        'Accept'     => 'application/json',
+                    ])
+                    ->withOptions([
+                        'curl' => [
+                            \CURLOPT_IPRESOLVE => \CURL_IPRESOLVE_V4,
+                        ]
+                    ])
+                    ->timeout(15)
+                    ->get('https://bmkgbulungan.id/cms/public/api/pm25_latest.json');
 
-            $responses = Http::pool(function (Pool $pool) use ($stasiun, $token) {
-                $reqs = [];
-                foreach ($stasiun as $nama => $id) {
-                    $reqs[] = $pool->as($nama)->timeout(5)->get("https://api.waqi.info/feed/{$id}/?token={$token}");
+                if ($response->successful()) {
+                    $json = $response->json();
+                    
+                    if (isset($json['status']) && $json['status'] === 'success' && isset($json['data'])) {
+                        $data = $json['data'];
+                        $additional = $data['additional_data'] ?? [];
+                        
+                        return [
+                            'pm25'       => $data['pm25'] ?? 0,
+                            'suhu'       => $additional['at'] ?? '-',
+                            'kelembapan' => $additional['rh'] ?? '-',
+                            'tekanan'    => $additional['bp'] ?? '-',
+                            'kec_angin'  => $additional['ws'] ?? '0.0',
+                            'arah_angin' => $additional['wd'] ?? '0',
+                            'waktu'      => isset($data['observation_at']) 
+                                            ? \Carbon\Carbon::parse($data['observation_at'])->timezone('Asia/Makassar')->translatedFormat('d M Y, H:i') 
+                                            : \Carbon\Carbon::now('Asia/Makassar')->translatedFormat('d M Y, H:i')
+                        ];
+                    }
                 }
-                return $reqs;
-            });
-
-            $results = [];
-
-            foreach ($responses as $nama => $response) {
-                if ($response instanceof \Illuminate\Http\Client\Response && $response->successful() && $response->json('status') === 'ok') {
-                    $data = $response->json('data');
-                    $aqi = $data['aqi'] ?? 0;
-
-                    $category = 'Baik';
-                    if ($aqi > 300) $category = 'Berbahaya';
-                    elseif ($aqi > 200) $category = 'Sangat Tidak Sehat';
-                    elseif ($aqi > 150) $category = 'Tidak Sehat';
-                    elseif ($aqi > 100) $category = 'Tidak Sehat (Sensitif)';
-                    elseif ($aqi > 50) $category = 'Moderat';
-
-                    $results[] = [
-                        'station_name' => $nama,
-                        'aqi_value'    => $aqi,
-                        'category'     => $category,
-                        'pm25'         => $data['iaqi']['pm25']['v'] ?? 'N/A',
-                        'measured_at'  => Carbon::parse($data['time']['s'])->toDateTimeString(),
-                    ];
-                }
+                
+                throw new \Exception("Ditolak Server");
+                
+            } catch (\Exception $e) {
+                return [
+                    'pm25'       => 0,
+                    'suhu'       => '-',
+                    'kelembapan' => '-',
+                    'tekanan'    => '-',
+                    'kec_angin'  => '0.0',
+                    'arah_angin' => '0',
+                    'waktu'      => \Carbon\Carbon::now('Asia/Makassar')->translatedFormat('d M Y, H:i')
+                ];
             }
-
-            usort($results, function($a, $b) {
-                return $a['aqi_value'] <=> $b['aqi_value'];
-            });
-
-            return $results; 
         });
 
-        $kualitasUdara = collect($kualitasUdara);
-
-        return view('frontend.iklim.kualitas-udara', compact('kualitasUdara'));
+        return view('frontend.iklim.kualitas-udara', compact('pm25Data'));
     }
     public function gempaDirasakan()
     {

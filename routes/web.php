@@ -24,7 +24,7 @@ Route::prefix('profil')->name('profil.')->group(function () {
 Route::get('/cuaca/peringatan-dini', [PublicController::class, 'peringatanDini'])->name('cuaca.peringatan');  
 Route::get('/cuaca/prakiraan', [PublicController::class, 'prakiraan'])->name('cuaca.prakiraan');
 Route::get('/cuaca/penerbangan', [PublicController::class, 'penerbangan'])->name('cuaca.penerbangan');
-Route::get('/iklim/kualitas-udara', [PublicController::class, 'kualitasUdara'])->name('iklim.kualitas-udara');
+Route::get('/iklim/kualitas-udara', [PublicController::class, 'kualitasUdara'])->name('kualitas-udara-index');
 Route::get('/iklim/peta', [PublicController::class, 'petaIklim'])->name('iklim.peta');
 
 // ==========================================
