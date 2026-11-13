@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use App\Models\Pm25Log;
 
 class PublicController extends Controller
 {
@@ -220,45 +221,20 @@ class PublicController extends Controller
     }
     public function penerbangan()
     {
-        $targetUrl = 'https://bmkgbulungan.id/awos/waqd/realtime.xml';
-        $proxyUrl = 'https://api.allorigins.win/raw?url=' . urlencode($targetUrl);
-        
-        $error = null;
-        $awosData = null;
-
         try {
-            $response = Http::timeout(20)
-                ->withHeaders([
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                ])
-                ->get($proxyUrl);
-
+            $response = Http::withoutVerifying()->timeout(10)->get('https://bmkgbulungan.id/awos/waqd/realtime.xml');
             if ($response->successful()) {
-                $xmlContent = $response->body();
-                
-                $start = strpos($xmlContent, '<AWOS>');
-                $end   = strpos($xmlContent, '</AWOS>');
-                
-                if ($start !== false && $end !== false) {
-                    $cleanXml = substr($xmlContent, $start, ($end - $start) + 7);
-                    $xml = @simplexml_load_string($cleanXml, 'SimpleXMLElement', LIBXML_NOCDATA);
-                    
-                    if ($xml) {
-                        $awosData = json_decode(json_encode($xml), true);
-                    } else {
-                        $error = "Gagal mem-parsing format XML AWOS setelah dibypass.";
-                    }
-                } else {
-                    $error = "Format XML tidak ditemukan. Server mungkin sedang offline.";
-                }
+                $xml = simplexml_load_string($response->body());
+                $awosData = json_decode(json_encode($xml), true);
+                $awosData['status'] = 'online';
             } else {
-                $error = "Gagal menghubungi Proxy Bridge (HTTP " . $response->status() . ")";
+                $awosData = ['status' => 'offline'];
             }
         } catch (\Exception $e) {
-            $error = "Koneksi Proxy Gagal: " . $e->getMessage();
+            $awosData = ['status' => 'offline'];
         }
 
-        return view('frontend.cuaca.penerbangan', compact('awosData', 'error'));
+        return view('frontend.cuaca.penerbangan', compact('awosData'));
     }
     public function gempaTerkini()
     {
@@ -270,59 +246,31 @@ class PublicController extends Controller
     }
     public function kualitasUdara()
     {
-        // Cache v12 untuk memastikan data fresh
-        $pm25Data = Cache::remember('pm25_local_data_v12', 60, function () {
-            try {
-                $response = Http::withoutVerifying()
-                    ->withHeaders([
-                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                        'Accept'     => 'application/json',
-                    ])
-                    ->withOptions([
-                        'curl' => [
-                            \CURLOPT_IPRESOLVE => \CURL_IPRESOLVE_V4,
-                        ]
-                    ])
-                    ->timeout(15)
-                    ->get('https://bmkgbulungan.id/cms/public/api/pm25_latest.json');
+        // Ambil data real-time saat ini untuk kartu utama di atas
+        $latestData = Pm25Log::latest()->first();
+        
+        $pm25Data = [
+            'pm25'       => $latestData->pm25 ?? 0,
+            'suhu'       => $latestData->suhu ?? 0,
+            'kelembapan' => $latestData->kelembapan ?? 0,
+            'tekanan'    => $latestData->tekanan ?? 0,
+            'kec_angin'  => $latestData->kec_angin ?? 0,
+            'arah_angin' => $latestData->arah_angin ?? 0,
+            'waktu'      => $latestData ? Carbon::parse($latestData->created_at)->format('d M Y, H:i') : '-'
+        ];
 
-                if ($response->successful()) {
-                    $json = $response->json();
-                    
-                    if (isset($json['status']) && $json['status'] === 'success' && isset($json['data'])) {
-                        $data = $json['data'];
-                        $additional = $data['additional_data'] ?? [];
+        // Ambil data untuk grafik 24 jam hari ini dari database
+        $hourlyData = [];
+        for ($h = 0; $h < 24; $h++) {
+            $log = Pm25Log::whereDate('created_at', Carbon::today())
+                        ->whereRaw('HOUR(created_at) = ?', [$h])
+                        ->first();
                         
-                        return [
-                            'pm25'       => $data['pm25'] ?? 0,
-                            'suhu'       => $additional['at'] ?? '-',
-                            'kelembapan' => $additional['rh'] ?? '-',
-                            'tekanan'    => $additional['bp'] ?? '-',
-                            'kec_angin'  => $additional['ws'] ?? '0.0',
-                            'arah_angin' => $additional['wd'] ?? '0',
-                            'waktu'      => isset($data['observation_at']) 
-                                            ? Carbon::parse($data['observation_at'])->timezone('Asia/Makassar')->translatedFormat('d M Y, H:i') 
-                                            : Carbon::now('Asia/Makassar')->translatedFormat('d M Y, H:i')
-                        ];
-                    }
-                }
-                
-                throw new \Exception("Ditolak Server");
-                
-            } catch (\Exception $e) {
-                return [
-                    'pm25'       => 0,
-                    'suhu'       => '-',
-                    'kelembapan' => '-',
-                    'tekanan'    => '-',
-                    'kec_angin'  => '0.0',
-                    'arah_angin' => '0',
-                    'waktu'      => Carbon::now('Asia/Makassar')->translatedFormat('d M Y, H:i')
-                ];
-            }
-        });
+            // Masukkan nilai PM2.5 jika ada, atau null jika kosong
+            $hourlyData[] = $log ? $log->pm25 : null;
+        }
 
-        return view('frontend.iklim.kualitas-udara', compact('pm25Data'));
+        return view('frontend.iklim.kualitas-udara', compact('pm25Data', 'hourlyData'));
     }
     public function gempaDirasakan()
     {

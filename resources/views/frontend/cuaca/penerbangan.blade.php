@@ -1,5 +1,7 @@
 @extends('layouts.app')
 
+@section('title', 'Aviation Weather System - WAQD')
+
 @section('content')
 
 {{-- Header Banner Tema Cyan/Aviation --}}
@@ -7,7 +9,6 @@
     <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
     <div class="absolute top-0 right-0 w-[500px] 2xl:w-[800px] h-[500px] 2xl:h-[800px] bg-cyan-500/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3"></div>
     
-    {{-- KUNCI 1: Wrapper Hero Merentang --}}
     <div class="w-[98%] max-w-[2500px] mx-auto px-6 2xl:px-12 relative z-10 text-center">
         <div class="inline-flex items-center space-x-2 2xl:space-x-4 px-4 py-1.5 2xl:px-8 2xl:py-3 mb-6 2xl:mb-10 bg-cyan-500/20 border border-cyan-500/30 rounded-full text-cyan-400 text-[10px] 2xl:text-lg font-black uppercase tracking-[0.2em]">
             <span class="w-2 h-2 2xl:w-4 2xl:h-4 rounded-full bg-cyan-500 animate-ping"></span>
@@ -24,32 +25,30 @@
 
 {{-- Dashboard Content --}}
 <section class="relative w-full bg-[#0f172a] pb-24 2xl:pb-40 -mt-20 2xl:-mt-32 z-20">
-    {{-- KUNCI 2: Wrapper Konten Utama Merentang --}}
     <div class="w-[98%] max-w-[2500px] mx-auto px-6 2xl:px-12">
         
-        {{-- KUNCI 3: Hapus max-w-6xl, ubah menjadi w-full --}}
         <div class="w-full mx-auto">
             
-            @if($error)
+            @if(isset($awosData['status']) && $awosData['status'] === 'offline')
                 <div class="bg-slate-800 rounded-3xl 2xl:rounded-[3rem] border border-slate-700 p-16 2xl:p-32 text-center shadow-2xl">
                     <span class="text-6xl 2xl:text-9xl mb-6 2xl:mb-12 block">📡</span>
                     <h3 class="text-2xl 2xl:text-5xl font-black text-white mb-2 2xl:mb-6">Offline Connection</h3>
-                    <p class="text-slate-400 mb-8 2xl:mb-12 2xl:text-2xl">{{ $error }}</p>
+                    <p class="text-slate-400 mb-8 2xl:mb-12 2xl:text-2xl">Gagal membaca data XML real-time dari server stasiun.</p>
                     <button onclick="window.location.reload()" class="bg-cyan-600 text-white font-black py-3 px-8 2xl:py-5 2xl:px-12 rounded-full hover:bg-cyan-500 transition-all uppercase text-xs 2xl:text-xl tracking-widest">Try Reconnect</button>
                 </div>
-            @elseif($awosData)
+            @elseif(isset($awosData))
                 @php
-                    // MAPPING DATA AWOS (Lengkap dengan Sensor Baru)
-                    $wd10m  = $awosData['wind_dir_10m'] ?? 0;
-                    $ws10m  = $awosData['wind_speed_10m'] ?? 0;
+                    // MAPPING DATA AWOS DARI XML
+                    $wd10m  = $awosData['wind_dir'] ?? $awosData['wind_dir_10m'] ?? 0;
+                    $ws10m  = $awosData['wind_speed'] ?? $awosData['wind_speed_10m'] ?? 0;
                     
                     // Kecepatan Angin Min & Max
                     $ws_min = $awosData['wind_speed_10m_min'] ?? '-';
                     $ws_max = $awosData['wind_speed_10m_max'] ?? '-';
 
                     // Suhu & Dew Point
-                    $temp   = $awosData['t'] ?? $awosData['temp'] ?? $awosData['ta'] ?? '///';
-                    $dew    = $awosData['dew_point'] ?? $awosData['dp'] ?? $awosData['dew'] ?? '///';
+                    $temp   = $awosData['temp'] ?? '///';
+                    $dew    = $awosData['dew_point'] ?? '///';
 
                     $qnh    = $awosData['qnh'] ?? '-';
                     $qfe    = $awosData['qfe'] ?? '-';
@@ -58,7 +57,7 @@
                     $prec   = $awosData['prec_1h'] ?? '0.0';
                     
                     $obsTime = $awosData['observation_time'] ?? null;
-                    $waktuUpdate = $obsTime ? \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $obsTime, 'UTC')->setTimezone('Asia/Makassar')->translatedFormat('d M Y • H:i:s') : '-';
+                    $waktuUpdate = $obsTime ? \Carbon\Carbon::parse($obsTime)->timezone('Asia/Makassar')->translatedFormat('d M Y • H:i:s') : '-';
 
                     // LOGIKA KONVERSI ARAH ANGIN (DERAJAT KE TEKS)
                     $arahAnginTeks = '-';
@@ -87,7 +86,6 @@
                         
                         {{-- SISI KIRI: WIND ANALYZER --}}
                         <div class="w-full lg:w-2/5 flex flex-col items-center justify-center">
-                            {{-- KUNCI 4: Radar Angin Diperbesar di 2xl --}}
                             <div class="relative w-64 h-64 md:w-80 md:h-80 2xl:w-[500px] 2xl:h-[500px]">
                                 {{-- Background Dial --}}
                                 <div class="absolute inset-0 rounded-full border-[12px] 2xl:border-[20px] border-slate-800 bg-slate-950 shadow-inner flex items-center justify-center">
