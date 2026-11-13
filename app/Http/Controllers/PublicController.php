@@ -301,8 +301,8 @@ class PublicController extends Controller
                             'kec_angin'  => $additional['ws'] ?? '0.0',
                             'arah_angin' => $additional['wd'] ?? '0',
                             'waktu'      => isset($data['observation_at']) 
-                                            ? \Carbon\Carbon::parse($data['observation_at'])->timezone('Asia/Makassar')->translatedFormat('d M Y, H:i') 
-                                            : \Carbon\Carbon::now('Asia/Makassar')->translatedFormat('d M Y, H:i')
+                                            ? Carbon::parse($data['observation_at'])->timezone('Asia/Makassar')->translatedFormat('d M Y, H:i') 
+                                            : Carbon::now('Asia/Makassar')->translatedFormat('d M Y, H:i')
                         ];
                     }
                 }
@@ -317,7 +317,7 @@ class PublicController extends Controller
                     'tekanan'    => '-',
                     'kec_angin'  => '0.0',
                     'arah_angin' => '0',
-                    'waktu'      => \Carbon\Carbon::now('Asia/Makassar')->translatedFormat('d M Y, H:i')
+                    'waktu'      => Carbon::now('Asia/Makassar')->translatedFormat('d M Y, H:i')
                 ];
             }
         });
