@@ -45,7 +45,7 @@
                                 <div id="peringatan-slider" class="flex transition-transform duration-500 ease-in-out w-full">
                                     @foreach($warnings as $index => $item)
                                     <div class="w-full shrink-0">
-                                        <div class="bg-amber-950/90 backdrop-blur-md border-l-4 border-amber-500 p-4 md:p-5 flex items-start space-x-4">
+                                        <div class="bg-amber-950 border-l-4 border-amber-500 p-4 md:p-5 flex items-start space-x-4 shadow-2xl">
                                             <div class="bg-amber-500/20 p-2.5 rounded-lg text-amber-400 shrink-0 border border-amber-500/30">
                                                 <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"/></svg>
                                             </div>
@@ -68,7 +68,7 @@
                         </div>
                     @else
                         <div class="mb-6">
-                            <div class="bg-emerald-950/80 backdrop-blur-md border-l-4 border-emerald-500 p-4 rounded-xl flex items-center space-x-4 border border-emerald-500/20 shadow-lg">
+                            <div class="bg-emerald-950 border-l-4 border-emerald-500 p-4 rounded-xl flex items-center space-x-4 border border-emerald-500/20 shadow-xl">
                                 <div class="bg-emerald-500/20 p-2.5 rounded-lg text-emerald-400 shrink-0 border border-emerald-500/30">
                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                 </div>
