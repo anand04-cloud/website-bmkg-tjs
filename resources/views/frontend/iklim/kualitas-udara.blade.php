@@ -143,7 +143,7 @@
                     <div class="flex items-center space-x-3">
                         <div class="flex items-center bg-white border border-slate-300 rounded-lg px-3 py-2 shadow-sm text-sm font-semibold text-slate-600">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            <span>{{ \Carbon\Carbon::now()->format('d/m/Y') }}</span>
+                            <span>{{ \Carbon\Carbon::now('Asia/Makassar')->format('d/m/Y') }}</span>
                         </div>
                     </div>
                 </div>
@@ -163,80 +163,84 @@
 
                     {{-- Area Grafik Utama --}}
                     <div class="relative flex-1 bg-white pb-8">
-                        {{-- Latar Warna Solid ISPU --}}
-                        <div class="absolute inset-0 flex flex-col w-full h-full pb-8">
-                            <div class="w-full bg-[#111111] border-b border-slate-700" style="height: 20%;"></div>
-                            <div class="w-full bg-[#ff0000] border-b border-red-800" style="height: 20%;"></div>
-                            <div class="w-full bg-[#ffff00] border-b border-yellow-600" style="height: 20%;"></div>
-                            <div class="w-full bg-[#0000ff] border-b border-blue-800" style="height: 20%;"></div>
-                            <div class="w-full bg-[#00ff00]" style="height: 20%;"></div>
-                        </div>
-
-                        {{-- Garis Grid Vertikal --}}
-                        <div class="absolute inset-0 w-full h-full pointer-events-none pb-8">
-                            <div class="flex w-full h-full">
-                                @for($i=0; $i<24; $i++)
-                                <div class="flex-1 border-r border-white/20 h-full"></div>
-                                @endfor
+                        {{-- Inner Wrapper agar koordinat 0%-100% latar, garis SVG, dan titik bulat sejajar presisi --}}
+                        <div class="relative w-full h-full">
+                            {{-- Latar Warna Solid ISPU --}}
+                            <div class="absolute inset-0 flex flex-col w-full h-full">
+                                <div class="w-full bg-[#111111] border-b border-slate-700" style="height: 20%;"></div>
+                                <div class="w-full bg-[#ff0000] border-b border-red-800" style="height: 20%;"></div>
+                                <div class="w-full bg-[#ffff00] border-b border-yellow-600" style="height: 20%;"></div>
+                                <div class="w-full bg-[#0000ff] border-b border-blue-800" style="height: 20%;"></div>
+                                <div class="w-full bg-[#00ff00]" style="height: 20%;"></div>
                             </div>
-                        </div>
 
-                        @php
-                            $hourlyData = [13.0, 17.1, 17.7, 21.8, 19.1, 18.4, 16.6, 20.2, 16.2, 18.5, 11.9, 16.5, 21.0, 17.9, 16.0, 15.5, 14.5, null, null, null, null, null, null, null];
-                            
-                            $coords = [];
-                            foreach($hourlyData as $index => $v) {
-                                if($v !== null) {
-                                    // Posisi X per jam (0-23) dibagi rata ke dalam SVG viewBox 1000x1000
-                                    $x = ($index / 23) * 1000;
-                                    
-                                    // Kalkulasi posisi Y dalam persentase
-                                    if ($v <= 15.5) { $yPct = ($v / 15.5) * 20; }
-                                    elseif ($v <= 55.4) { $yPct = 20 + (($v - 15.5) / (55.4 - 15.5)) * 20; }
-                                    elseif ($v <= 150.4) { $yPct = 40 + (($v - 55.4) / (150.4 - 55.4)) * 20; }
-                                    elseif ($v <= 250.4) { $yPct = 60 + (($v - 150.4) / (250.4 - 150.4)) * 20; }
-                                    else { $yPct = 80 + (min($v - 250.4, 99.6) / 99.6) * 20; }
-                                    
-                                    // SVG viewBox 1000, Y dibalik (0 di atas, 1000 di bawah)
-                                    $svgY = 1000 - ($yPct * 10);
-                                    $coords[] = ['x' => $x, 'y' => $svgY, 'val' => $v, 'htmlX' => ($index / 23) * 100, 'htmlY' => $yPct];
-                                }
-                            }
-
-                            // Membuat jalur garis mulus (Smooth Bezier Curve)
-                            $pathSvg = "";
-                            if (count($coords) > 0) {
-                                $pathSvg = "M {$coords[0]['x']} {$coords[0]['y']}";
-                                for ($i = 0; $i < count($coords) - 1; $i++) {
-                                    $xc = ($coords[$i]['x'] + $coords[$i+1]['x']) / 2;
-                                    $yc = ($coords[$i]['y'] + $coords[$i+1]['y']) / 2;
-                                    $pathSvg .= " Q {$coords[$i]['x']} {$coords[$i]['y']}, {$xc} {$yc}";
-                                }
-                                $last = end($coords);
-                                $pathSvg .= " L {$last['x']} {$last['y']}";
-                            }
-                        @endphp
-
-                        {{-- SVG KANVAS UTAMA (Garis Grafik Presisi) --}}
-                        <svg class="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible pb-8" preserveAspectRatio="none" viewBox="0 0 1000 1000">
-                            <path d="{{ $pathSvg }}" fill="none" stroke="#8b0000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
-                        </svg>
-
-                        {{-- RENDER TITIK BULAT & ANGKA DI ATASNYA (Satu Koordinat Presisi) --}}
-                        <div class="absolute inset-0 w-full h-full z-20 pb-8 pointer-events-none">
-                            @foreach($coords as $pt)
-                            {{-- Bulatan Putih Ber-border Merah Tua --}}
-                            <div class="absolute w-3 h-3 md:w-3.5 md:h-3.5 bg-white border-[2.5px] border-[#8b0000] rounded-full shadow-sm" 
-                                style="left: {{ $pt['htmlX'] }}%; bottom: {{ $pt['htmlY'] }}%; transform: translate(-50%, 50%);"></div>
-                            
-                            {{-- Angka Nilai Oranye --}}
-                            <div class="absolute flex justify-center z-30" 
-                                style="left: {{ $pt['htmlX'] }}%; bottom: {{ $pt['htmlY'] }}%; transform: translate(-50%, 0); margin-bottom: 10px;">
-                                <span class="text-[9px] md:text-[11px] font-black text-orange-500 bg-white/80 px-1 py-0.5 rounded shadow-sm leading-none text-center">
-                                    {{ $pt['val'] }}
-                                </span>
+                            {{-- Garis Grid Vertikal --}}
+                            <div class="absolute inset-0 w-full h-full pointer-events-none">
+                                <div class="flex w-full h-full">
+                                    @for($i=0; $i<24; $i++)
+                                    <div class="flex-1 border-r border-white/20 h-full"></div>
+                                    @endfor
+                                </div>
                             </div>
-                            @endforeach
+
+                            @php
+                                // Gunakan data dinamis 24 jam yang dikirim dari PublicController
+                                $hourlyData = $hourlyData ?? array_fill(0, 24, null);
+                                
+                                $coords = [];
+                                foreach($hourlyData as $index => $v) {
+                                    if($v !== null) {
+                                        // Posisi X per jam (0-23) dibagi rata ke dalam SVG viewBox 1000x1000
+                                        $x = ($index / 23) * 1000;
+                                        
+                                        // Kalkulasi posisi Y dalam persentase
+                                        if ($v <= 15.5) { $yPct = ($v / 15.5) * 20; }
+                                        elseif ($v <= 55.4) { $yPct = 20 + (($v - 15.5) / (55.4 - 15.5)) * 20; }
+                                        elseif ($v <= 150.4) { $yPct = 40 + (($v - 55.4) / (150.4 - 55.4)) * 20; }
+                                        elseif ($v <= 250.4) { $yPct = 60 + (($v - 150.4) / (250.4 - 150.4)) * 20; }
+                                        else { $yPct = 80 + (min($v - 250.4, 99.6) / 99.6) * 20; }
+                                        
+                                        // SVG viewBox 1000, Y dibalik (0 di atas, 1000 di bawah)
+                                        $svgY = 1000 - ($yPct * 10);
+                                        $coords[] = ['x' => $x, 'y' => $svgY, 'val' => $v, 'htmlX' => ($index / 23) * 100, 'htmlY' => $yPct];
+                                    }
+                                }
+
+                                // Membuat jalur garis mulus (Smooth Bezier Curve)
+                                $pathSvg = "";
+                                if (count($coords) > 0) {
+                                    $pathSvg = "M {$coords[0]['x']} {$coords[0]['y']}";
+                                    for ($i = 0; $i < count($coords) - 1; $i++) {
+                                        $xc = ($coords[$i]['x'] + $coords[$i+1]['x']) / 2;
+                                        $yc = ($coords[$i]['y'] + $coords[$i+1]['y']) / 2;
+                                        $pathSvg .= " Q {$coords[$i]['x']} {$coords[$i]['y']}, {$xc} {$yc}";
+                                    }
+                                    $last = end($coords);
+                                    $pathSvg .= " L {$last['x']} {$last['y']}";
+                                }
+                            @endphp
+
+                            {{-- SVG KANVAS UTAMA (Garis Grafik Presisi) --}}
+                            <svg class="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible" preserveAspectRatio="none" viewBox="0 0 1000 1000">
+                                <path d="{{ $pathSvg }}" fill="none" stroke="#8b0000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            </svg>
+
+                            {{-- RENDER TITIK BULAT & ANGKA DI ATASNYA (Satu Koordinat Presisi) --}}
+                            <div class="absolute inset-0 w-full h-full z-20 pointer-events-none">
+                                @foreach($coords as $pt)
+                                {{-- Bulatan Putih Ber-border Merah Tua --}}
+                                <div class="absolute w-3 h-3 md:w-3.5 md:h-3.5 bg-white border-[2.5px] border-[#8b0000] rounded-full shadow-sm" 
+                                    style="left: {{ $pt['htmlX'] }}%; bottom: {{ $pt['htmlY'] }}%; transform: translate(-50%, 50%);"></div>
+                                
+                                {{-- Angka Nilai Oranye --}}
+                                <div class="absolute flex justify-center z-30" 
+                                    style="left: {{ $pt['htmlX'] }}%; bottom: {{ $pt['htmlY'] }}%; transform: translate(-50%, 0); margin-bottom: 10px;">
+                                    <span class="text-[9px] md:text-[11px] font-black text-orange-500 bg-white/80 px-1 py-0.5 rounded shadow-sm leading-none text-center">
+                                        {{ $pt['val'] }}
+                                    </span>
+                                </div>
+                                @endforeach
+                            </div>
                         </div>
 
                         {{-- Sumbu X (Bawah): Jam 0-23 --}}
