@@ -163,17 +163,7 @@ class PublicController extends Controller
         $gempa = Earthquake::latest()->first();
         
         // --- AMBIL DATA KUALITAS UDARA DARI API LOKAL BARU ---
-        $pm25Data = Cache::remember('pm25_local_latest_home', 60, function () {
-            try {
-                $response = Http::withoutVerifying()->timeout(10)->get('https://bmkgbulungan.id/cms/public/api/pm25_latest.json');
-                if ($response->successful()) {
-                    return $response->json();
-                }
-            } catch (\Exception $e) {
-                return null;
-            }
-            return null;
-        });
+        $pm25Data = $this->getPm25Data()['pm25Data'];
 
         // Fallback jika API lokal gagal/kosong
         $val = $pm25Data['pm25'] ?? 83.80; 
@@ -244,33 +234,93 @@ class PublicController extends Controller
                             ->orderBy('datetime', 'desc')->get();
         return view('frontend.gempa.terkini', compact('gempaTerbaru', 'riwayatGempa'));
     }
+    private function getPm25Data(): array
+    {
+        // Cache 3 menit (180 detik) agar beban query dan HTTP request tetap ringan
+        return Cache::remember('pm25_realtime_and_hourly', 180, function () {
+            $pm25Data = [
+                'pm25'       => 0,
+                'suhu'       => 0,
+                'kelembapan' => 0,
+                'tekanan'    => 0,
+                'kec_angin'  => 0,
+                'arah_angin' => 0,
+                'waktu'      => '-',
+            ];
+
+            $hourlyData = array_fill(0, 24, null);
+
+            // 1. Ambil 1 data terbaru dari API JSON CMS
+            try {
+                $response = Http::withoutVerifying()
+                    ->timeout(8)
+                    ->get('https://bmkgbulungan.id/cms/public/api/pm25_latest.json');
+
+                if ($response->successful()) {
+                    $json = $response->json();
+                    $latest = $json['data'] ?? $json['latest'] ?? $json;
+                    $obsTime = $latest['observation_at'] ?? $latest['waktu'] ?? $latest['updated_at'] ?? null;
+
+                    $pm25Data = [
+                        'pm25'       => (float) ($latest['pm25'] ?? 0),
+                        'suhu'       => (float) ($latest['at'] ?? $latest['suhu'] ?? 0),
+                        'kelembapan' => (float) ($latest['rh'] ?? $latest['kelembapan'] ?? 0),
+                        'tekanan'    => (float) ($latest['bp'] ?? $latest['tekanan'] ?? 0),
+                        'kec_angin'  => (float) ($latest['ws'] ?? $latest['kec_angin'] ?? 0),
+                        'arah_angin' => (float) ($latest['wd'] ?? $latest['arah_angin'] ?? 0),
+                        'waktu'      => $obsTime ? Carbon::parse($obsTime)->format('d M Y, H:i') : '-',
+                    ];
+                }
+            } catch (\Exception $e) {
+                // Lanjut ke fallback database jika endpoint JSON gagal diakses
+            }
+
+            // 2. Ambil data grafik 24 jam hari ini (WITA) dari database bmkj2641_cms
+            try {
+                $todayWita = Carbon::today('Asia/Makassar')->toDateString();
+
+                $logs = Pm25Log::whereDate('observation_at', $todayWita)
+                    ->orderBy('observation_at', 'asc')
+                    ->get();
+
+                foreach ($logs as $log) {
+                    $hour = (int) Carbon::parse($log->observation_at)->format('G');
+                    if ($hour >= 0 && $hour < 24) {
+                        $hourlyData[$hour] = (float) $log->pm25;
+                    }
+                }
+
+                // Fallback kartu utama jika JSON sempat gagal
+                if ($pm25Data['pm25'] == 0) {
+                    $latestDb = Pm25Log::orderBy('observation_at', 'desc')->first();
+                    if ($latestDb) {
+                        $pm25Data = [
+                            'pm25'       => (float) ($latestDb->pm25 ?? 0),
+                            'suhu'       => (float) ($latestDb->at ?? 0),
+                            'kelembapan' => (float) ($latestDb->rh ?? 0),
+                            'tekanan'    => (float) ($latestDb->bp ?? 0),
+                            'kec_angin'  => (float) ($latestDb->ws ?? 0),
+                            'arah_angin' => (float) ($latestDb->wd ?? 0),
+                            'waktu'      => $latestDb->observation_at ? Carbon::parse($latestDb->observation_at)->format('d M Y, H:i') : '-',
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                // Aman di lingkungan lokal (Laragon) meskipun database CMS tidak terhubung
+            }
+
+            return compact('pm25Data', 'hourlyData');
+        });
+    }
+
     public function kualitasUdara()
     {
-        // Ambil data real-time saat ini untuk kartu utama di atas
-        $latestData = Pm25Log::latest()->first();
-        
-        $pm25Data = [
-            'pm25'       => $latestData->pm25 ?? 0,
-            'suhu'       => $latestData->suhu ?? 0,
-            'kelembapan' => $latestData->kelembapan ?? 0,
-            'tekanan'    => $latestData->tekanan ?? 0,
-            'kec_angin'  => $latestData->kec_angin ?? 0,
-            'arah_angin' => $latestData->arah_angin ?? 0,
-            'waktu'      => $latestData ? Carbon::parse($latestData->created_at)->format('d M Y, H:i') : '-'
-        ];
+        $data = $this->getPm25Data();
 
-        // Ambil data untuk grafik 24 jam hari ini dari database
-        $hourlyData = [];
-        for ($h = 0; $h < 24; $h++) {
-            $log = Pm25Log::whereDate('created_at', Carbon::today())
-                        ->whereRaw('HOUR(created_at) = ?', [$h])
-                        ->first();
-                        
-            // Masukkan nilai PM2.5 jika ada, atau null jika kosong
-            $hourlyData[] = $log ? $log->pm25 : null;
-        }
-
-        return view('frontend.iklim.kualitas-udara', compact('pm25Data', 'hourlyData'));
+        return view('frontend.iklim.kualitas-udara', [
+            'pm25Data'   => $data['pm25Data'],
+            'hourlyData' => $data['hourlyData'],
+        ]);
     }
     public function gempaDirasakan()
     {
