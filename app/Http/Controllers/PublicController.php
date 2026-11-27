@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Client\Response;
 use App\Models\Pm25Log;
 
 class PublicController extends Controller
@@ -338,39 +339,231 @@ class PublicController extends Controller
 
     public function petaIklim()
     {
-        $kategoriList = [
-            'prediksi_ch_dasarian'   => 'Prediksi Curah Hujan Dasarian',
-            'prediksi_ch_bulanan'    => 'Prediksi Curah Hujan Bulanan',
-            'prediksi_sifat_bulanan' => 'Prediksi Sifat Hujan Bulanan',
-            'monitoring_hth'         => 'Monitoring Hari Tanpa Hujan',
-            'analisis_ch_dasarian'   => 'Analisis Curah Hujan Dasarian',
-            'analisis_ch_bulanan'    => 'Analisis Curah Hujan Bulanan',
-            'analisis_sifat_bulanan' => 'Analisis Sifat Hujan Bulanan',
-        ];
+        $data = $this->getClimateData();
 
-        $dataIklim = [];
+        return view('frontend.iklim.peta-iklim', [
+            'climateGroups' => $data['climateGroups'],
+        ]);
+    }
 
-        foreach ($kategoriList as $key => $judul) {
-            // KUNCI PERUBAHAN: Ambil SEMUA data untuk kategori ini, urutkan dari yang terbaru
-            $semuaData = \App\Models\PetaIklim::where('kategori', $key)->latest()->get();
-            
-            // Ambil data urutan pertama (paling baru) untuk layar utama
-            $record = $semuaData->first(); 
-            
-            // Ambil sisanya (lewati data 1, ambil maksimal 10 data lama) untuk arsip
-            $arsip = $semuaData->take(10); 
+    public function downloadPetaIklim(Request $request)
+    {
+        $kategori = (string) $request->query('kategori');
+        $filename = basename((string) $request->query('file'));
 
-            $dataIklim[$key] = [
-                'judul'      => $judul,
-                'gambar'     => $record ? asset('storage/' . $record->gambar) : 'https://placehold.co/800x600/e2e8f0/475569?text=Peta+Belum+Tersedia',
-                'periode'    => $record ? $record->periode : 'Menunggu Update',
-                'keterangan' => $record && $record->keterangan ? $record->keterangan : 'Belum ada keterangan atau analisis untuk periode ini.',
-                'arsip'      => $arsip // Masukkan arsip ke array untuk dikirim ke Blade
-            ];
+        $allowedCategories = ['PCH_Bulanan', 'PCH_Dasarian', 'PSH_Bulanan', 'PSH_Dasarian'];
+        if (!in_array($kategori, $allowedCategories, true) || !preg_match('/^[A-Za-z0-9_.-]+\.png$/', $filename)) {
+            abort(404);
         }
 
-        return view('frontend.iklim.peta-iklim', compact('dataIklim'));
+        // 1. Prioritas Utama (Server Produksi cPanel): Baca langsung dari disk tanpa HTTP/SSL
+        $candidatePaths = [
+            dirname(base_path()) . "/public_html/cms/storage/app/public/climate/{$kategori}/{$filename}",
+            public_path("cms/storage/app/public/climate/{$kategori}/{$filename}"),
+        ];
+
+        foreach ($candidatePaths as $localPath) {
+            if (is_file($localPath)) {
+                return response()->download($localPath, $filename, [
+                    'Content-Type' => 'image/png',
+                ]);
+            }
+        }
+
+        $remoteUrl = "https://bmkgbulungan.id/cms/storage/app/public/climate/{$kategori}/{$filename}";
+
+        // 2. Fallback Laragon Lokal: Gunakan PHP SSL stream wrapper (melewati bug handshake cURL OpenSSL 3.0.15)
+        try {
+            $context = stream_context_create([
+                'ssl' => [
+                    'verify_peer'      => false,
+                    'verify_peer_name' => false,
+                    'allow_self_signed'=> true,
+                ],
+                'http' => [
+                    'timeout'    => 15,
+                    'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                ],
+            ]);
+
+            $binary = @file_get_contents($remoteUrl, false, $context);
+            if ($binary !== false && strlen($binary) > 100) {
+                return response($binary, 200, [
+                    'Content-Type'        => 'image/png',
+                    'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                ]);
+            }
+        } catch (\Throwable $e) {
+            // Lanjut ke fallback redirect jika jaringan lokal memblokir PHP
+        }
+
+        // 3. Pengaman terakhir agar tidak pernah memunculkan halaman 404
+        return redirect()->away($remoteUrl);
     }
+
+    private function getClimateData(): array
+    {
+        // Cache 10 menit (600 detik)
+        return Cache::remember('bmkg_climate_all_regions_v2', 600, function () {
+            $baseUrl = 'https://bmkgbulungan.id/cms/storage/app/public/climate';
+            $now = Carbon::now('Asia/Makassar')->locale('id');
+
+            // 1. Deteksi otomatis periode paling baru berdasarkan Last-Modified file di CMS
+            $selectedPeriode = 1;
+            $latestTimestamp = 0;
+
+            foreach ([1, 2, 3] as $p) {
+                $checkUrl = "{$baseUrl}/PCH_Bulanan/PCH_Bulanan_65_kalimantan_utara_periode_{$p}.png";
+                try {
+                    $head = Http::withoutVerifying()->timeout(3)->head($checkUrl);
+                    if ($head->successful() && $head->header('Last-Modified')) {
+                        $ts = Carbon::parse($head->header('Last-Modified'))->timestamp;
+                        if ($ts > $latestTimestamp) {
+                            $latestTimestamp = $ts;
+                            $selectedPeriode = $p;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Lanjut ke pengecekan berikutnya
+                }
+            }
+
+            // 2. Hitung label Periode Bulanan & Dasarian sesuai periode terbaru
+            $targetMonth = $now->copy()->addMonths($selectedPeriode - 1);
+            $labelBulanan = 'Bulan ' . $targetMonth->translatedFormat('F Y');
+
+            $currentDasarian = $now->day <= 10 ? 1 : ($now->day <= 20 ? 2 : 3);
+            $totalDasarianIndex = (($now->month - 1) * 3) + ($currentDasarian - 1) + ($selectedPeriode - 1);
+            $dasarianMonthOffset = intdiv($totalDasarianIndex, 3) - ($now->month - 1);
+            $dasarianNumber = ($totalDasarianIndex % 3) + 1;
+            $romawi = [1 => 'I', 2 => 'II', 3 => 'III'][$dasarianNumber];
+            $dasarianDate = $now->copy()->addMonths($dasarianMonthOffset);
+            $labelDasarian = "Dasarian {$romawi} " . $dasarianDate->translatedFormat('F Y');
+
+            // 3. Daftar Provinsi & Kabupaten/Kota Kalimantan Utara (dengan titik pada kode: 65.xx)
+            $regions = [
+                [
+                    'code'  => '65',
+                    'name'  => 'Kalimantan Utara',
+                    'type'  => 'Provinsi',
+                    'slug'  => 'kalimantan_utara',
+                    'slugs' => ['kalimantan_utara'],
+                ],
+                [
+                    'code'  => '65.01',
+                    'name'  => 'Bulungan',
+                    'type'  => 'Kabupaten / Kota',
+                    'slug'  => 'bulungan',
+                    'slugs' => ['bulungan', 'kabupaten_bulungan'],
+                ],
+                [
+                    'code'  => '65.02',
+                    'name'  => 'Malinau',
+                    'type'  => 'Kabupaten / Kota',
+                    'slug'  => 'malinau',
+                    'slugs' => ['malinau', 'kabupaten_malinau'],
+                ],
+                [
+                    'code'  => '65.03',
+                    'name'  => 'Nunukan',
+                    'type'  => 'Kabupaten / Kota',
+                    'slug'  => 'nunukan',
+                    'slugs' => ['nunukan', 'kabupaten_nunukan'],
+                ],
+                [
+                    'code'  => '65.04',
+                    'name'  => 'Tana Tidung',
+                    'type'  => 'Kabupaten / Kota',
+                    'slug'  => 'tana_tidung',
+                    'slugs' => ['tana_tidung', 'kabupaten_tana_tidung'],
+                ],
+                [
+                    'code'  => '65.71',
+                    'name'  => 'Kota Tarakan',
+                    'type'  => 'Kabupaten / Kota',
+                    'slug'  => 'tarakan',
+                    'slugs' => ['tarakan', 'kota_tarakan'],
+                ],
+            ];
+
+            $categories = [
+                ['key' => 'PCH_Bulanan',  'title' => 'Prediksi Curah Hujan Bulanan',  'periode' => $labelBulanan],
+                ['key' => 'PCH_Dasarian', 'title' => 'Prediksi Curah Hujan Dasarian', 'periode' => $labelDasarian],
+                ['key' => 'PSH_Bulanan',  'title' => 'Prediksi Sifat Hujan Bulanan',  'periode' => $labelBulanan],
+                ['key' => 'PSH_Dasarian', 'title' => 'Prediksi Sifat Hujan Dasarian', 'periode' => $labelDasarian],
+            ];
+
+            // 4. Cek ketersediaan file & waktu render secara paralel
+            $urlsToCheck = [];
+            foreach ($regions as $region) {
+                foreach ($categories as $cat) {
+                    foreach ($region['slugs'] as $candidateSlug) {
+                        $poolKey = "{$region['code']}|{$cat['key']}|{$candidateSlug}";
+                        $filename = "{$cat['key']}_{$region['code']}_{$candidateSlug}_periode_{$selectedPeriode}.png";
+                        $urlsToCheck[$poolKey] = "{$baseUrl}/{$cat['key']}/{$filename}";
+                    }
+                }
+            }
+
+            $responses = Http::pool(function ($pool) use ($urlsToCheck) {
+                foreach ($urlsToCheck as $poolKey => $url) {
+                    $pool->as($poolKey)->withoutVerifying()->timeout(4)->head($url);
+                }
+            });
+
+            $climateGroups = [];
+
+            foreach ($regions as $region) {
+                $maps = [];
+                foreach ($categories as $cat) {
+                    $chosenSlug = $region['slugs'][0];
+                    $renderDate = $now->format('d M Y H:i');
+                    $versionTs = $now->timestamp;
+
+                    foreach ($region['slugs'] as $candidateSlug) {
+                        $poolKey = "{$region['code']}|{$cat['key']}|{$candidateSlug}";
+                        $res = $responses[$poolKey] ?? null;
+
+                        if ($res instanceof Response && $res->successful()) {
+                            $chosenSlug = $candidateSlug;
+                            if ($res->header('Last-Modified')) {
+                                $dt = Carbon::parse($res->header('Last-Modified'))->setTimezone('Asia/Makassar');
+                                $renderDate = $dt->format('d M Y H:i');
+                                $versionTs = $dt->timestamp;
+                            }
+                            break;
+                        }
+                    }
+
+                    $filename = "{$cat['key']}_{$region['code']}_{$chosenSlug}_periode_{$selectedPeriode}.png";
+                    $rawUrl = "{$baseUrl}/{$cat['key']}/{$filename}";
+
+                    $maps[] = [
+                        'key'            => $cat['key'],
+                        'title'          => $cat['title'],
+                        'wilayah'        => $region['name'],
+                        'periode'        => $cat['periode'],
+                        'tanggal_render' => $renderDate,
+                        'image_url'      => "{$rawUrl}?v={$versionTs}",
+                        'raw_url'        => $rawUrl,
+                        'filename'       => $filename,
+                    ];
+                }
+
+                $climateGroups[] = [
+                    'code'  => $region['code'],
+                    'name'  => $region['name'],
+                    'type'  => $region['type'],
+                    'slug'  => $region['slug'],
+                    'count' => count($maps),
+                    'maps'  => $maps,
+                ];
+            }
+
+            return compact('climateGroups');
+        });
+    }
+
     public function berita()
     {
         $beritas = Berita::orderBy('published_at', 'desc')->paginate(9);

@@ -4,7 +4,9 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('bmkg:fetch')->everyTenMinutes();
+Schedule::command('bmkg:fetch')
+    ->everyTenMinutes()
+    ->withoutOverlapping(10);
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

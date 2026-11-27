@@ -1,271 +1,188 @@
 @extends('layouts.app')
 
+@section('title', 'Informasi Iklim — Peta Prakiraan')
+
 @section('content')
 
-{{-- CSS KHUSUS UNTUK MEMPERCANTIK SCROLLBAR ARSIP --}}
-<style>
-    .arsip-scroll::-webkit-scrollbar {
-        height: 6px;
-    }
-    .arsip-scroll::-webkit-scrollbar-track {
-        background: #f1f5f9; 
-        border-radius: 10px;
-    }
-    .arsip-scroll::-webkit-scrollbar-thumb {
-        background: #cbd5e1; 
-        border-radius: 10px;
-    }
-    .arsip-scroll::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8; 
-    }
-</style>
-
-{{-- HERO SECTION GELAP --}}
-<section class="relative bg-slate-900 pt-32 pb-32 overflow-hidden">
+{{-- HEADER BANNER TEMA GELAP --}}
+<section class="relative bg-slate-900 pt-32 pb-24 2xl:pt-48 2xl:pb-36 overflow-hidden">
     <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
-    <div class="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
-    <div class="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3"></div>
-    
-    <div class="container mx-auto px-6 relative z-10 text-center">
-        <div class="inline-flex items-center space-x-2 px-4 py-1.5 mb-6 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-400 text-xs font-black uppercase tracking-widest">
-            <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-            <span>Update Berkala</span>
+    <div class="absolute top-0 right-0 w-96 2xl:w-[800px] h-96 2xl:h-[800px] bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+    <div class="absolute bottom-0 left-0 w-96 2xl:w-[800px] h-96 2xl:h-[800px] bg-emerald-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3"></div>
+
+    <div class="w-[98%] max-w-[1600px] mx-auto px-6 relative z-10 text-center">
+        <div class="inline-flex items-center space-x-2 px-4 py-1.5 mb-6 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-300 text-xs font-black uppercase tracking-widest shadow-lg">
+            <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+            <span>WebGIS Auto-Layout Climate Service</span>
         </div>
         <h1 class="text-4xl md:text-5xl font-black text-white tracking-tight mb-4">
-            Informasi Iklim & HTH
+            Informasi Iklim Kalimantan Utara
         </h1>
-        <p class="text-slate-400 font-medium max-w-2xl mx-auto">
-            Analisis dan Prediksi Spasial Informasi Iklim dan Hari Tanpa Hujan (HTH) Wilayah Kalimantan Utara
+        <p class="text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed">
+            Peta Prakiraan Curah Hujan dan Sifat Hujan (Bulanan & Dasarian) Wilayah Provinsi Kalimantan Utara serta Kabupaten/Kota.
         </p>
     </div>
 </section>
 
-{{-- KONTEN UTAMA (TABS & PETA) --}}
-<div class="bg-slate-50 pb-20 min-h-screen">
-    <div class="container mx-auto px-6 max-w-7xl relative -mt-20 z-20">
-        
-        <div class="bg-white rounded-[2rem] shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden flex flex-col md:flex-row">
-            
-            {{-- SIDEBAR TABS --}}
-            <div class="w-full md:w-1/3 lg:w-1/4 bg-slate-800 p-6 flex flex-col gap-2">
-                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 ml-2">Pilih Jenis Peta</p>
-                
-                @foreach($dataIklim as $key => $item)
-                <button onclick="changeTab('{{ $key }}')" id="btn-{{ $key }}" class="tab-btn w-full text-left px-5 py-4 rounded-xl font-bold text-sm transition-all duration-300 {{ $loop->first ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-slate-300 hover:bg-slate-700' }}">
-                    {{ $item['judul'] }}
-                </button>
-                @endforeach
-            </div>
+{{-- MAIN CONTENT --}}
+<section class="relative w-full bg-[#f8faff] pb-24 -mt-10 z-20 font-sans">
+    <div class="w-[98%] max-w-[1600px] mx-auto px-4 md:px-8">
 
-            {{-- KONTEN PETA & KETERANGAN --}}
-            <div class="w-full md:w-2/3 lg:w-3/4 p-6 md:p-10 relative bg-slate-50/50 min-h-[600px]">
-                @foreach($dataIklim as $key => $item)
-                <div id="content-{{ $key }}" class="tab-content transition-opacity duration-500 {{ $loop->first ? 'block opacity-100' : 'hidden opacity-0' }}">
-                    
-                    <div class="flex flex-col md:flex-row justify-between md:items-end mb-6 gap-4">
-                        <div>
-                            <h2 class="text-2xl font-black text-slate-800">{{ $item['judul'] }}</h2>
-                            <p id="periode-{{ $key }}" class="text-sm font-bold text-blue-600 mt-1">Periode: {{ $item['periode'] }}</p>
+        <div class="bg-[#f4f7f9] rounded-[2rem] p-4 md:p-8 shadow-2xl border border-slate-200/60">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+                {{-- SIDEBAR KIRI (Produk Layanan & Filter Wilayah Kaltara) --}}
+                <aside class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-6 lg:sticky lg:top-28">
+                    {{-- Menu Kategori Produk --}}
+                    <div class="space-y-1.5">
+                        <p class="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Produk Layanan Iklim</p>
+
+                        <div class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-bold bg-blue-600 text-white shadow-md shadow-blue-600/20">
+                            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                            <span>Peta Prediksi</span>
                         </div>
-                        @if($item['periode'] !== 'Menunggu Update')
-                        <span id="badge-{{ $key }}" class="inline-flex items-center justify-center px-4 py-1.5 bg-green-100 text-green-700 text-xs font-black rounded-full uppercase tracking-wider h-fit shadow-sm">
-                            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></span> Update Terbaru
-                        </span>
-                        @endif
                     </div>
 
-                    {{-- WADAH GAMBAR UTAMA --}}
-                    <div id="main-wrapper-{{ $key }}" data-img="{{ $item['gambar'] }}" onclick="openLightbox(this.getAttribute('data-img'))" class="bg-white p-2 rounded-2xl shadow-sm border border-slate-200 group cursor-zoom-in overflow-hidden relative flex items-center justify-center min-h-[300px]">
-                        <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10 rounded-xl">
-                            <span class="bg-white text-slate-800 px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 shadow-lg">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
-                                Klik untuk Perbesar
-                            </span>
-                        </div>
-                        <img id="main-img-{{ $key }}" src="{{ $item['gambar'] }}" alt="{{ $item['judul'] }}" class="w-full h-auto object-contain max-h-[500px] rounded-xl transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy">
-                    </div>
-
-                    {{-- KETERANGAN / ANALISIS --}}
-                    <div class="mt-6 p-6 bg-blue-50/70 rounded-2xl border border-blue-100/50 shadow-sm">
-                        <h3 class="text-xs font-black text-blue-800 uppercase tracking-widest mb-3 flex items-center gap-2">
-                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Keterangan & Analisis
-                        </h3>
-                        <p id="keterangan-{{ $key }}" class="text-slate-600 text-sm leading-relaxed whitespace-pre-line">{{ $item['keterangan'] }}</p>
-                    </div>
-
-                    {{-- ARSIP DATA (Termasuk yang terbaru) --}}
-                    @if(count($item['arsip']) > 0)
-                    <div class="mt-8 relative">
-                        <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Daftar Peta Iklim
-                            <span class="hidden md:inline-block ml-auto text-[9px] text-slate-400 font-bold tracking-widest"><span class="animate-pulse mr-1">↔️</span> GESER (DRAG) UNTUK MELIHAT</span>
-                        </h3>
-                        
-                        {{-- KUNCI PERBAIKAN: Penambahan class UX cursor-grab dan select-none --}}
-                        <div class="flex overflow-x-auto gap-4 pb-4 snap-x arsip-scroll cursor-grab active:cursor-grabbing select-none">
-                            @foreach($item['arsip'] as $arsip)
-                            <div class="snap-start shrink-0 w-48 group cursor-pointer relative" 
-                                 data-img="{{ asset('storage/' . $arsip->gambar) }}"
-                                 data-periode="{{ $arsip->periode }}"
-                                 data-ket="{{ $arsip->keterangan ?? 'Belum ada keterangan analisis untuk periode ini.' }}"
-                                 data-is-latest="{{ $loop->first ? 'yes' : 'no' }}" 
-                                 onclick="viewArchive('{{ $key }}', this)">
-                                
-                                {{-- Jika ini data terbaru, beri indikator kecil --}}
-                                @if($loop->first)
-                                <div class="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full border-2 border-white z-20 animate-pulse"></div>
-                                @endif
-
-                                <div class="bg-white p-1.5 rounded-xl border {{ $loop->first ? 'border-green-300' : 'border-slate-200' }} shadow-sm overflow-hidden relative transition-all duration-300 hover:border-blue-400 hover:shadow-md pointer-events-none">
-                                    <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center z-10 rounded-lg">
-                                        <svg class="w-6 h-6 text-white mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                        <span class="text-white text-[10px] font-bold">Lihat Detail</span>
-                                    </div>
-                                    <img src="{{ asset('storage/' . $arsip->gambar) }}" class="w-full h-32 object-cover rounded-lg" alt="Arsip {{ $arsip->periode }}" loading="lazy">
-                                </div>
-                                <p class="text-[11px] font-bold {{ $loop->first ? 'text-green-600' : 'text-slate-600' }} mt-2 line-clamp-2 text-center group-hover:text-blue-600 transition-colors pointer-events-none">{{ $arsip->periode }}</p>
-                            </div>
+                    {{-- Filter Wilayah Kaltara --}}
+                    <div class="pt-4 border-t border-slate-100">
+                        <label for="filter-wilayah" class="block px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                            Filter Wilayah Kaltara
+                        </label>
+                        <select id="filter-wilayah" onchange="filterRegion(this.value)"
+                            class="w-full rounded-xl border-slate-200 bg-slate-50 text-sm font-bold text-slate-700 focus:border-blue-500 focus:ring-blue-500">
+                            <option value="all">Semua Wilayah (Provinsi & Kab/Kota)</option>
+                            @foreach($climateGroups as $group)
+                                <option value="{{ $group['slug'] }}">{{ $group['name'] }} ({{ $group['type'] }})</option>
                             @endforeach
-                        </div>
+                        </select>
                     </div>
-                    @endif
+                </aside>
+
+                {{-- KONTEN KANAN: PETA LAYOUT PROVINSI & KABUPATEN/KOTA --}}
+                <div class="lg:col-span-9 space-y-6">
+
+                    {{-- Header Section --}}
+                    <div class="bg-white rounded-2xl border border-slate-200 p-5 md:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex items-start space-x-3">
+                            <div class="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-black text-slate-800">
+                                    Peta Layout Prakiraan Iklim
+                                </h2>
+                                <p class="text-xs md:text-sm text-slate-500 font-medium">
+                                    Terintegrasi otomatis dari Sistem WebGIS Stasiun Meteorologi Tanjung Harapan — Kalimantan Utara
+                                </p>
+                            </div>
+                        </div>
+
+                        <span class="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 self-start md:self-center">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>
+                            Sinkronisasi Otomatis Aktif
+                        </span>
+                    </div>
+
+                    {{-- Daftar Wilayah (Provinsi + Kabupaten/Kota) --}}
+                    @foreach($climateGroups as $group)
+                        <div class="region-block bg-white rounded-2xl border border-slate-200 p-5 md:p-6 shadow-sm" data-region="{{ $group['slug'] }}">
+                            {{-- Header Wilayah --}}
+                            <div class="flex flex-wrap items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-100 border-l-4 border-l-blue-600 pl-3">
+                                <div class="flex items-center space-x-2.5">
+                                    <svg class="w-5 h-5 text-rose-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+                                    <h3 class="text-lg font-black text-slate-800">{{ $group['name'] }}</h3>
+                                    <span class="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                        {{ $group['type'] }}
+                                    </span>
+                                </div>
+                                <span class="px-3 py-1 rounded-lg text-xs font-extrabold bg-blue-50 text-blue-600 border border-blue-100">
+                                    {{ $group['count'] }} Peta Layout
+                                </span>
+                            </div>
+
+                            {{-- Grid 4 Kartu Peta --}}
+                            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                                @foreach($group['maps'] as $map)
+                                    <div class="group bg-white rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-lg transition-all duration-200 flex flex-col overflow-hidden">
+                                        {{-- Thumbnail Peta (Klik buka gambar penuh di tab baru) --}}
+                                        <a href="{{ $map['image_url'] }}" target="_blank" rel="noopener"
+                                           class="block relative aspect-[4/3] bg-slate-50 border-b border-slate-100 overflow-hidden">
+                                            <img src="{{ $map['image_url'] }}"
+                                                 alt="{{ $map['title'] }} - {{ $map['wilayah'] }}"
+                                                 loading="lazy"
+                                                 onerror="this.onerror=null; this.src='https://placehold.co/600x450/f1f5f9/64748b?text=Peta+Belum+Tersedia';"
+                                                 class="w-full h-full object-contain p-1.5 group-hover:scale-105 transition-transform duration-300">
+                                        </a>
+
+                                        {{-- Metadata Peta --}}
+                                        <div class="p-4 flex-grow flex flex-col justify-between">
+                                            <div>
+                                                <h4 class="font-extrabold text-sm text-slate-800 leading-snug mb-2">
+                                                    {{ $map['title'] }}
+                                                </h4>
+                                                <div class="space-y-1 text-[11px] text-slate-500">
+                                                    <p>Wilayah : <span class="font-bold text-blue-600">{{ $map['wilayah'] }}</span></p>
+                                                    <p>Periode : <span class="font-semibold text-slate-700">{{ $map['periode'] }}</span></p>
+                                                    <p>Tanggal Render : <span class="font-semibold text-slate-700">{{ $map['tanggal_render'] }}</span></p>
+                                                </div>
+                                            </div>
+
+                                            {{-- 3 Tombol Aksi (Lihat, Salin Link, Download Langsung) --}}
+                                            <div class="mt-4 pt-3 border-t border-slate-100 flex items-center gap-1.5">
+                                                <a href="{{ $map['image_url'] }}" target="_blank" rel="noopener"
+                                                   class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-300 text-xs font-bold text-slate-700 hover:text-blue-700 transition">
+                                                    <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                    <span>Lihat</span>
+                                                </a>
+
+                                                <button type="button"
+                                                    onclick="copyMapUrl(this, '{{ $map['raw_url'] }}')"
+                                                    title="Salin Tautan Peta"
+                                                    class="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                                </button>
+
+                                                <a href="{{ route('iklim.peta.download', ['kategori' => $map['key'], 'file' => $map['filename']]) }}"
+                                                   title="Unduh Peta PNG"
+                                                   class="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
 
                 </div>
-                @endforeach
             </div>
-
         </div>
     </div>
-</div>
-
-{{-- MODAL LIGHTBOX --}}
-<div id="lightbox" class="fixed inset-0 z-[9999] bg-slate-900/95 hidden flex-col items-center justify-center opacity-0 transition-opacity duration-300" onclick="closeLightbox()">
-    <button class="absolute top-6 right-6 text-white bg-white/10 hover:bg-red-500 p-3 rounded-full transition-colors z-50">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-    </button>
-    <div class="w-full h-full p-4 md:p-12 flex items-center justify-center overflow-auto">
-        <img id="lightbox-img" src="" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl transform scale-95 transition-transform duration-300 cursor-zoom-out" alt="Zoomed Map" onclick="event.stopPropagation(); closeLightbox();">
-    </div>
-</div>
+</section>
 
 <script>
-    // Fungsi Tab Peta Kiri
-    function changeTab(tabId) {
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-500/30');
-            btn.classList.add('text-slate-300', 'hover:bg-slate-700');
+    function filterRegion(slug) {
+        document.querySelectorAll('.region-block').forEach(el => {
+            if (slug === 'all' || el.dataset.region === slug) {
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
         });
-        
-        const activeBtn = document.getElementById('btn-' + tabId);
-        activeBtn.classList.remove('text-slate-300', 'hover:bg-slate-700');
-        activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-500/30');
+    }
 
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.add('hidden', 'opacity-0');
-            content.classList.remove('block', 'opacity-100');
+    function copyMapUrl(btn, url) {
+        navigator.clipboard.writeText(url).then(() => {
+            const originalHtml = btn.innerHTML;
+            btn.classList.add('border-emerald-400', 'bg-emerald-50', 'text-emerald-600');
+            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+            setTimeout(() => {
+                btn.classList.remove('border-emerald-400', 'bg-emerald-50', 'text-emerald-600');
+                btn.innerHTML = originalHtml;
+            }, 1500);
         });
-
-        const activeContent = document.getElementById('content-' + tabId);
-        activeContent.classList.remove('hidden');
-        setTimeout(() => {
-            activeContent.classList.remove('opacity-0');
-            activeContent.classList.add('opacity-100');
-        }, 50);
     }
-
-    // Fungsi Gallery Swap
-    function viewArchive(tabKey, element) {
-        const imgSrc = element.getAttribute('data-img');
-        const periode = element.getAttribute('data-periode');
-        const keterangan = element.getAttribute('data-ket');
-        const isLatest = element.getAttribute('data-is-latest');
-
-        document.getElementById('main-img-' + tabKey).src = imgSrc;
-        document.getElementById('main-wrapper-' + tabKey).setAttribute('data-img', imgSrc);
-        document.getElementById('periode-' + tabKey).innerText = 'Periode: ' + periode;
-        document.getElementById('keterangan-' + tabKey).innerText = keterangan;
-
-        const badge = document.getElementById('badge-' + tabKey);
-        if (badge) {
-            badge.style.display = isLatest === 'yes' ? 'inline-flex' : 'none';
-        }
-
-        document.getElementById('content-' + tabKey).scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    // Fungsi Lightbox
-    const lightbox = document.getElementById('lightbox');
-    const lightboxImg = document.getElementById('lightbox-img');
-
-    function openLightbox(imgSrc) {
-        if(imgSrc.includes('placehold.co')) return; 
-        
-        lightboxImg.src = imgSrc;
-        lightbox.classList.remove('hidden');
-        lightbox.classList.add('flex');
-        document.body.style.overflow = 'hidden'; 
-        
-        setTimeout(() => {
-            lightbox.classList.remove('opacity-0');
-            lightboxImg.classList.remove('scale-95');
-            lightboxImg.classList.add('scale-100');
-        }, 10);
-    }
-
-    function closeLightbox() {
-        lightbox.classList.add('opacity-0');
-        lightboxImg.classList.remove('scale-100');
-        lightboxImg.classList.add('scale-95');
-        document.body.style.overflow = 'auto'; 
-        
-        setTimeout(() => {
-            lightbox.classList.remove('flex');
-            lightbox.classList.add('hidden');
-            lightboxImg.src = '';
-        }, 300);
-    }
-
-    // =======================================================================
-    // FUNGSI BARU: DRAG TO SCROLL UNTUK MULTIPLE SLIDER ARSIP (DESKTOP UX)
-    // =======================================================================
-    document.addEventListener('DOMContentLoaded', () => {
-        const sliders = document.querySelectorAll('.arsip-scroll');
-        
-        sliders.forEach(slider => {
-            let isDown = false;
-            let startX;
-            let scrollLeft;
-
-            slider.addEventListener('mousedown', (e) => {
-                isDown = true;
-                slider.classList.add('cursor-grabbing');
-                slider.classList.remove('cursor-grab');
-                startX = e.pageX - slider.offsetLeft;
-                scrollLeft = slider.scrollLeft;
-            });
-            
-            slider.addEventListener('mouseleave', () => {
-                isDown = false;
-                slider.classList.remove('cursor-grabbing');
-                slider.classList.add('cursor-grab');
-            });
-            
-            slider.addEventListener('mouseup', () => {
-                isDown = false;
-                slider.classList.remove('cursor-grabbing');
-                slider.classList.add('cursor-grab');
-            });
-            
-            slider.addEventListener('mousemove', (e) => {
-                if (!isDown) return;
-                e.preventDefault(); 
-                const x = e.pageX - slider.offsetLeft;
-                const walk = (x - startX) * 2; 
-                slider.scrollLeft = scrollLeft - walk;
-            });
-        });
-    });
 </script>
+
 @endsection

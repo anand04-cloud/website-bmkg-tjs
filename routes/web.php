@@ -26,6 +26,7 @@ Route::get('/cuaca/prakiraan', [PublicController::class, 'prakiraan'])->name('cu
 Route::get('/cuaca/penerbangan', [PublicController::class, 'penerbangan'])->name('cuaca.penerbangan');
 Route::get('/iklim/kualitas-udara', [PublicController::class, 'kualitasUdara'])->name('iklim.kualitas-udara');
 Route::get('/iklim/peta', [PublicController::class, 'petaIklim'])->name('iklim.peta');
+Route::get('/iklim/peta/download', [PublicController::class, 'downloadPetaIklim'])->name('iklim.peta.download');
 
 // ==========================================
 // GEMPA BUMI
