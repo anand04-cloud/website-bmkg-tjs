@@ -4,6 +4,60 @@
 
 @section('content')
 
+<style>
+    .iklim-layout-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+    @media (min-width: 1024px) {
+        .iklim-layout-grid {
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+        }
+        .iklim-sidebar {
+            grid-column: span 3 / span 3;
+        }
+        .iklim-content {
+            grid-column: span 9 / span 9;
+            min-width: 0;
+        }
+    }
+    .iklim-cards-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    @media (min-width: 640px) {
+        .iklim-cards-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+    @media (min-width: 1280px) {
+        .iklim-cards-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+    .iklim-thumb-box {
+        position: relative;
+        aspect-ratio: 4 / 3;
+        width: 100%;
+        background-color: #f8fafc;
+        border-bottom: 1px solid #f1f5f9;
+        overflow: hidden;
+        display: block;
+    }
+    .iklim-thumb-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    .iklim-region-header {
+        border-left: 4px solid #2563eb;
+        padding-left: 0.75rem;
+    }
+</style>
+
 {{-- HEADER BANNER TEMA GELAP --}}
 <section class="relative bg-slate-900 pt-32 pb-24 2xl:pt-48 2xl:pb-36 overflow-hidden">
     <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
@@ -29,10 +83,10 @@
     <div class="w-[98%] max-w-[1600px] mx-auto px-4 md:px-8">
 
         <div class="bg-[#f4f7f9] rounded-[2rem] p-4 md:p-8 shadow-2xl border border-slate-200/60">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div class="iklim-layout-grid">
 
                 {{-- SIDEBAR KIRI (Produk Layanan & Filter Wilayah Kaltara) --}}
-                <aside class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-6 lg:sticky lg:top-28">
+                <aside class="iklim-sidebar bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-6 lg:sticky lg:top-28">
                     {{-- Menu Kategori Produk --}}
                     <div class="space-y-1.5">
                         <p class="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Produk Layanan Iklim</p>
@@ -59,7 +113,7 @@
                 </aside>
 
                 {{-- KONTEN KANAN: PETA LAYOUT PROVINSI & KABUPATEN/KOTA --}}
-                <div class="lg:col-span-9 space-y-6">
+                <div class="iklim-content space-y-6">
 
                     {{-- Header Section --}}
                     <div class="bg-white rounded-2xl border border-slate-200 p-5 md:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -77,7 +131,7 @@
                             </div>
                         </div>
 
-                        <span class="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 self-start md:self-center">
+                        <span class="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 self-start md:self-center shrink-0">
                             <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>
                             Sinkronisasi Otomatis Aktif
                         </span>
@@ -87,7 +141,7 @@
                     @foreach($climateGroups as $group)
                         <div class="region-block bg-white rounded-2xl border border-slate-200 p-5 md:p-6 shadow-sm" data-region="{{ $group['slug'] }}">
                             {{-- Header Wilayah --}}
-                            <div class="flex flex-wrap items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-100 border-l-4 border-l-blue-600 pl-3">
+                            <div class="iklim-region-header flex flex-wrap items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-100">
                                 <div class="flex items-center space-x-2.5">
                                     <svg class="w-5 h-5 text-rose-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
                                     <h3 class="text-lg font-black text-slate-800">{{ $group['name'] }}</h3>
@@ -101,17 +155,16 @@
                             </div>
 
                             {{-- Grid 4 Kartu Peta --}}
-                            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                            <div class="iklim-cards-grid">
                                 @foreach($group['maps'] as $map)
                                     <div class="group bg-white rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-lg transition-all duration-200 flex flex-col overflow-hidden">
                                         {{-- Thumbnail Peta (Klik buka gambar penuh di tab baru) --}}
-                                        <a href="{{ $map['image_url'] }}" target="_blank" rel="noopener"
-                                           class="block relative aspect-[4/3] bg-slate-50 border-b border-slate-100 overflow-hidden">
+                                        <a href="{{ $map['image_url'] }}" target="_blank" rel="noopener" class="iklim-thumb-box">
                                             <img src="{{ $map['image_url'] }}"
                                                  alt="{{ $map['title'] }} - {{ $map['wilayah'] }}"
                                                  loading="lazy"
                                                  onerror="this.onerror=null; this.src='https://placehold.co/600x450/f1f5f9/64748b?text=Peta+Belum+Tersedia';"
-                                                 class="w-full h-full object-contain p-1.5 group-hover:scale-105 transition-transform duration-300">
+                                                 class="p-1.5 group-hover:scale-105 transition-transform duration-300">
                                         </a>
 
                                         {{-- Metadata Peta --}}
